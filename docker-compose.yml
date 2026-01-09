@@ -1,39 +1,58 @@
-services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: weather_postgres
-    environment:
-      POSTGRES_DB: weather_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-
-  data-generator:
-    build: ./data-generator
-    container_name: weather_generator
-    environment:
-      DB_HOST: postgres
-      DB_NAME: weather_db
-      DB_USER: postgres
-      DB_PASSWORD: password
-    depends_on:
-      - postgres
-
-  jupyter:
-    image: jupyter/datascience-notebook:latest
-    container_name: weather_jupyter
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./notebooks:/home/jovyan/work
-    environment:
-      JUPYTER_TOKEN: "weather123"
-    depends_on:
-      - postgres
+version: "3.9"
 
 volumes:
   postgres_data:
+
+services:
+  # ---------- PostgreSQL ----------
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: weather_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: always
+    networks:
+      - redash_default
+
+  # ---------- Data Generator ----------
+  data-generator:
+    build: ./data-generator
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASS: password
+      DB_NAME: weather_db
+    restart: always
+    networks:
+      - redash_default
+
+  # ---------- Jupyter ----------
+  jupyter:
+    image: jupyter/datascience-notebook:latest
+    ports:
+      - "8888:8888"
+    environment:
+      JUPYTER_TOKEN: "weather123"
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASS: password
+      DB_NAME: weather_db
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    depends_on:
+      - postgres
+    restart: always
+    networks:
+      - redash_default
+
+networks:
+  redash_default:
+    external: true
